@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.env
+*.db
+data/*.db
+*.log
+.vscode/
+.DS_Store
+dump.rdb
+appendonly.aof
