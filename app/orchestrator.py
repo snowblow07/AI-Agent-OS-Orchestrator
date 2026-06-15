@@ -3,26 +3,16 @@ import json
 import sqlite3
 from typing import Any, Dict, Optional
 
+import redis
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import redis
 
-app = FastAPI(title="AI Agent OS Orchestrator")
-
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
-
-DB_PATH = "data/agent_os_events.db"
+from app.config import DB_PATH
 
 
-class IntentPayload(BaseModel):
-    graph_state_id: str
-    node_id: str
-    telemetry_event_id: str
-    tool_name: str
-    args: Dict[str, Any]
-    parent_intent_hash: Optional[str] = None
-
-
+# -----------------------------
+# DB INITIALIZATION
+# -----------------------------
 def initialize_database():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -42,6 +32,33 @@ def initialize_database():
     conn.close()
 
 
+# run at import time (required for pytest/TestClient)
+initialize_database()
+
+
+# -----------------------------
+# FASTAPI APP
+# -----------------------------
+app = FastAPI(title="AI Agent OS Orchestrator")
+
+r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+
+
+# -----------------------------
+# MODEL
+# -----------------------------
+class IntentPayload(BaseModel):
+    graph_state_id: str
+    node_id: str
+    telemetry_event_id: str
+    tool_name: str
+    args: Dict[str, Any]
+    parent_intent_hash: Optional[str] = None
+
+
+# -----------------------------
+# CORE LOGIC
+# -----------------------------
 def generate_intent_hash(payload: IntentPayload) -> str:
     raw = json.dumps(payload.args, sort_keys=True)
     base = f"{payload.graph_state_id}:{payload.node_id}:{payload.telemetry_event_id}:{payload.tool_name}:{raw}"
@@ -65,33 +82,35 @@ def log_event(intent_hash, event_type, payload, parent_hash=None):
     conn.close()
 
 
-@app.on_event("startup")
-def startup():
-    initialize_database()
-
-
+# -----------------------------
+# API
+# -----------------------------
 @app.post("/execute")
 async def execute_intent(payload: IntentPayload):
     intent_hash = generate_intent_hash(payload)
 
-    # Idempotency check
+    # Idempotency
     if r.get(f"resolved:{intent_hash}"):
         return {"status": "DEDUPLICATED", "intent_hash": intent_hash}
 
     # Circuit breaker
     if int(r.get(f"failures:{intent_hash}") or 0) >= 5:
+        log_event(intent_hash, "IntentQuarantined", payload.model_dump())
         raise HTTPException(status_code=423, detail="QUARANTINED")
 
-    # Lease lock (single-flight protection)
+    # Lease lock (single-flight)
     if not r.set(f"lease:{intent_hash}", "1", ex=30, nx=True):
         return {"status": "LOCKED", "intent_hash": intent_hash}
 
-    log_event(intent_hash, "Registered", payload.model_dump())
+    # Register event
+    log_event(intent_hash, "IntentRegistered", payload.model_dump())
 
     print("Executing:", payload.tool_name)
 
+    # Mark resolved
     r.set(f"resolved:{intent_hash}", "true", ex=86400)
 
-    log_event(intent_hash, "Success", payload.model_dump())
+    # Success event
+    log_event(intent_hash, "ExecutionSucceeded", payload.model_dump())
 
     return {"status": "SUCCESS", "intent_hash": intent_hash}

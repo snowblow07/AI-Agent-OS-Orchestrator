@@ -1,6 +1,7 @@
 # AI Agent OS
 
 Phase 1 system:
+- Resilient Intent Orchestrator (RIO)
 - FastAPI orchestrator
 - Redis locking
 - SQLite ledger

@@ -1,0 +1,1 @@
+DB_PATH = "data/agent_os_events.db"
