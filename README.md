@@ -1,4 +1,4 @@
-# AI Agent OS
+# AI Agent OS Orchestator
 
 Phase 1 system:
 - Resilient Intent Orchestrator (RIO)
