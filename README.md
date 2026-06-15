@@ -40,3 +40,33 @@ Currently available tools:
    ```bash
    python app/mcp_server.py
    ```
+
+Here’s a short README-style summary you can paste into `README.md`:
+
+---
+
+## Running the Stack
+
+To start the system, you need to run three services in separate terminal windows (or VS Code split terminals).
+
+First, start **Redis** using Docker:
+
+```bash
+docker run -p 6379:6379 -d redis
+```
+
+Next, initialize the database and start the **FastAPI orchestrator** from the project root with your virtual environment activated:
+
+```bash
+python init_db.py
+#fastapi dev app/orchestrator.py
+uvicorn app.orchestrator:app --reload
+```
+
+Finally, start the **MCP server** (also with the virtual environment activated):
+
+```bash
+python app/mcp_server.py
+```
+
+Once all three services are running, the full stack will be online.
