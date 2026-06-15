@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.core import initialize_database
+from db.init_db import initialize_database
 from app.api import router as agent_router
 
 # Run startup tasks

@@ -3,7 +3,6 @@ import os
 
 DB_PATH = "data/agent_os_events.db"
 
-
 def initialize_database():
     os.makedirs("data", exist_ok=True)
 
@@ -14,6 +13,7 @@ def initialize_database():
     CREATE TABLE IF NOT EXISTS execution_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         intent_hash TEXT NOT NULL,
+        execution_id TEXT NOT NULL,
         parent_intent_hash TEXT,
         event_type TEXT NOT NULL,
         payload TEXT NOT NULL,
@@ -25,7 +25,6 @@ def initialize_database():
     conn.close()
 
     print("SQLite ledger initialized.")
-
 
 if __name__ == "__main__":
     initialize_database()
